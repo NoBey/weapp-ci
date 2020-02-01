@@ -4,6 +4,21 @@ const qs = require("qs");
 const qrcode = require("qrcode-terminal");
 const pack = require("./src/pack");
 
+const fs = require("fs");
+const os = require("os");
+const util = require("util");
+const weappDir = os.homedir() + '/Library/Application\ Support/微信开发者工具/WeappLocalData/'
+
+const getLocalTicket = async () => {
+  let data = require( weappDir + 'hash_key_map.json' )
+  for (const key in data) {
+    if('userInfo_newticket' === data[key]){
+      const d =  await  util.promisify(fs.readFile)(`${weappDir}localstorage_${key}.json`)
+      return d.toString()
+    }
+  }
+}
+
 const OPEN_WEIXIN = "https://open.weixin.qq.com";
 const SERVICE_WECHAT = "https://servicewechat.com";
 const MP_WEIXIN = "https://mp.weixin.qq.com";
@@ -79,4 +94,4 @@ const preview = async (path, newticket, options) => {
   return { qrcode_img, url };
 };
 
-module.exports = { login, preview };
+module.exports = { login, preview, getLocalTicket };
