@@ -67,13 +67,27 @@ function connect(longUrl) {
 
 // 预览
 const preview = async (path, newticket, options) => {
+  const { qrcode_img } =  await upload(path, '/wxa-dev/testsource' ,newticket, options)
+  const url = await decode_qrcode(qrcode_img)
+  return { qrcode_img, url }
+}
+
+
+// 上传体验版
+const publish = async (path, newticket, options) => {
+  const data = await upload( path, '/wxa-dev/commitsource', newticket, { 'user-version': '1.0.0', ...options } )
+  return data
+}
+
+// 上传
+const upload = async (path, url, newticket, options) => {
   if (!options.appid) return "no appid";
   if (!newticket) return "no newticket";
 
   if (newticket) options.newticket = newticket;
   const packages = pack(path); // 把目录打包压缩
   const { data } = await axios.post(
-    `${SERVICE_WECHAT}/wxa-dev/testsource?${qs.stringify({
+    `${SERVICE_WECHAT}${url}?${qs.stringify({
       gzip: 1,
       path: "pages/index/index",
       clientversion,
@@ -81,7 +95,12 @@ const preview = async (path, newticket, options) => {
     })}`,
     packages
   );
-  const qrcode_img = data["qrcode_img"];
+
+  return data;
+};
+
+// 生成url
+const decode_qrcode = async base64 => {
   const {
     data: { result: url }
   } = await axios.post(
@@ -89,9 +108,11 @@ const preview = async (path, newticket, options) => {
       newticket,
       appid: options.appid
     })}`,
-    Buffer.from(qrcode_img, "base64")
+    Buffer.from(base64, "base64")
   );
-  return { qrcode_img, url };
-};
+  return url
+}
 
-module.exports = { login, preview, getLocalTicket };
+
+
+module.exports = { login, preview, getLocalTicket, publish };
