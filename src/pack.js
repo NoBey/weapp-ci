@@ -1,10 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 const glob = require('glob');
-const crypto = require('crypto');
 const zlib = require('zlib');
 
-const pack = (dir, options) => {
+const pack = (dir, options, signature) => {
   options = Object.assign({ 
     nodir: true
   }, options);
@@ -17,14 +16,23 @@ const pack = (dir, options) => {
       filename
     };
   });
+  if(signature) {
+    files.push({
+      filename: "ci.signature",
+      data: Buffer.from(signature)
+    })
+  }
+ 
   let datas = [], offset = 18 + (12 * files.length);
   const names = files.map(({filename, data}) => {
-    filename = path.relative(dir, filename);
+    filename = filename !== 'ci.signature' ? path.relative(dir, filename) : filename;
     const name = new Buffer.from(`/${filename.replace(/\\/g,'/')}`);
     offset += name.length;
     datas.push(data);
     return name;
   });
+
+  // /ci.signature
   let metas = Buffer.concat(names.map((name, i) => {
     const data = datas[i];
     const meta = Buffer.concat([

@@ -1,28 +1,34 @@
-const https = require("https");
 const axios = require("axios");
 const qs = require("qs");
 const qrcode = require("qrcode-terminal");
 const pack = require("./src/pack");
-
+const QrCode = require("qrcode-reader");
+const Jimp = require("jimp");
 const fs = require("fs");
 const os = require("os");
 const util = require("util");
-const weappDir = os.homedir() + '/Library/Application\ Support/微信开发者工具/WeappLocalData/'
+const glob = require('glob');
+
 
 const getLocalTicket = async () => {
+  let weappDir = os.homedir() + '/Library/Application\ Support/微信开发者工具/**/WeappLocalData/'
+  const files = glob.sync( weappDir )
+  if(!files.length) return 
+    const hash = files[0].split('微信开发者工具/')[1].replace('/WeappLocalData/', '')
+    weappDir = weappDir.replace('**', hash)
   let data = require( weappDir + 'hash_key_map.json' )
   for (const key in data) {
     if('userInfo_newticket' === data[key]){
       const d =  await  util.promisify(fs.readFile)(`${weappDir}localstorage_${key}.json`)
       return d.toString()
-    }
+    }  
   }
 }
 
 const OPEN_WEIXIN = "https://open.weixin.qq.com";
 const SERVICE_WECHAT = "https://servicewechat.com";
 const MP_WEIXIN = "https://mp.weixin.qq.com";
-const clientversion = "1021907300"; // 开发者客户端版本
+const clientversion = "1022007300"; // 开发者客户端版本
 
 const loginAppId = "wxde40e023744664cb"; // 特殊的一个AppId不用这个无法登陆
 const loginUrl = `${OPEN_WEIXIN}/connect/qrconnect?appid=${loginAppId}&redirect_uri=https://mp.weixin.qq.com&scope=snsapi_login&state=login#wechat_redirect`;
@@ -99,7 +105,7 @@ const upload = async (path, url, newticket, options) => {
   return data;
 };
 
-// 生成url
+// 使用微信接口解析二维码生成url
 const decode_qrcode = async base64 => {
   const {
     data: { result: url }
@@ -113,6 +119,19 @@ const decode_qrcode = async base64 => {
   return url
 }
 
+// 使用 jimp 和 qrcode-reader 解码
+const qrcode_decode = buffer =>
+  new Promise((resolve, reject) => {
+    const ImgBuffer = Buffer.from(buffer, "base64");
+    Jimp.read(ImgBuffer, (err, image) => {
+      if (err) return reject({ err, msg: "加载图片出错" });
+      const qr = new QrCode();
+      qr.callback = (err, value) => {
+        if (err) return reject({ err, msg: "解析图片出错" });
+        resolve(value.result);
+      };
+      qr.decode(image.bitmap);
+    });
+  });
 
-
-module.exports = { login, preview, getLocalTicket, publish };
+module.exports = { login, preview, getLocalTicket, publish, qrcode_decode };
